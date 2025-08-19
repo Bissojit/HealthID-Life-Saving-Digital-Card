@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Emergency Info Card Generator</title>
+  <link rel="stylesheet" href="./styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script defer src="./dist/app.js"></script>
+</head>
+<body>
+  <header class="site-header">
+    <h1 class="app-title">Emergency Info Card</h1>
+    <div class="note">
+      Please fill out your emergency details carefully. All fields marked with * are required.
+      To see Live Preview, Please save the information.
+    </div>
+  </header>
+
+  <main class="layout">
+    <!-- Form Panel -->
+    <section class="panel form-panel">
+      <h2>Your Details</h2>
+      <form id="profileForm" novalidate>
+        <!-- Identity -->
+        <fieldset>
+          <legend>Identity</legend>
+          <div class="grid two">
+            <label class="field">
+              <span>Full Name <span class="req">*</span></span>
+              <input id="fullName" name="fullName" required placeholder="e.g., Alex Johnson">
+            </label>
+            <label class="field">
+              <span>Upload Photo (Passport size)</span>
+              <input type="file" id="photoFile" name="photoFile" accept="image/*">
+            </label>
+          </div>
+
+          <div class="grid two">
+            <label class="field">
+              <span>Date of Birth</span>
+              <input type="date" id="dob" name="dob">
+            </label>
+            <label class="field">
+              <span>Primary Language</span>
+              <input id="language" name="language" placeholder="e.g., English">
+            </label>
+          </div>
+
+          <div class="grid one">
+            <label class="field">
+              <span>Blood Type</span>
+              <select id="bloodType" name="bloodType">
+                <option value="">– Select –</option>
+                <option>O+</option><option>O-</option>
+                <option>A+</option><option>A-</option>
+                <option>B+</option><option>B-</option>
+                <option>AB+</option><option>AB-</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="grid two">
+            <label class="field">
+              <span>Height / Weight</span>
+              <input id="heightWeight" name="heightWeight" placeholder="e.g., 175cm / 70kg">
+            </label>
+          </div>
+        </fieldset>
+
+        <!-- Emergency Contacts -->
+        <fieldset>
+          <legend>Emergency Contacts</legend>
+          <div class="grid two">
+            <label class="field">
+              <span>Emergency Contact 1 Name <span class="req">*</span></span>
+              <input id="ice1Name" name="ice1Name" required placeholder="e.g., Jordan Smith">
+            </label>
+            <label class="field">
+              <span>Emergency Contact 1 Phone <span class="req">*</span></span>
+              <input id="ice1Phone" name="ice1Phone" required placeholder="+61 4xx xxx xxx">
+            </label>
+          </div>
+
+          <div class="grid two">
+            <label class="field">
+              <span>Emergency Contact 2 Name</span>
+              <input id="ice2Name" name="ice2Name" placeholder="Optional">
+            </label>
+            <label class="field">
+              <span>Emergency Contact 2 Phone</span>
+              <input id="ice2Phone" name="ice2Phone" placeholder="Optional">
+            </label>
+          </div>
+
+          <div class="grid two">
+            <label class="field">
+              <span>Primary Doctor Name</span>
+              <input id="doctorName" name="doctorName" placeholder="Optional">
+            </label>
+            <label class="field">
+              <span>Doctor Phone / Clinic</span>
+              <input id="doctorPhone" name="doctorPhone" placeholder="Optional">
+            </label>
+          </div>
+
+          <div class="grid two">
+            <label class="field">
+              <span>Preferred Hospital</span>
+              <input id="hospital" name="hospital" placeholder="Optional">
+            </label>
+            <label class="field">
+              <span>Next of Kin</span>
+              <input id="nextOfKin" name="nextOfKin" placeholder="Optional">
+            </label>
+          </div>
+        </fieldset>
+
+        <!-- Medical Info -->
+        <fieldset>
+          <legend>Medical</legend>
+          <div class="grid two">
+            <label class="field">
+              <span>Allergies</span>
+              <input id="allergies" name="allergies" placeholder="e.g., Penicillin, nuts">
+            </label>
+            <label class="field">
+              <span>Medications</span>
+              <input id="medications" name="medications" placeholder="e.g., Atorvastatin 10mg">
+            </label>
+          </div>
+
+          <div class="grid two">
+            <label class="field">
+              <span>Conditions</span>
+              <input id="conditions" name="conditions" placeholder="e.g., Asthma, Diabetes (Type 1)">
+            </label>
+            <label class="field">
+              <span>Special Instructions</span>
+              <input id="specialInstructions" name="specialInstructions" placeholder="Optional">
+            </label>
+          </div>
+
+          <div class="grid two">
+            <label class="field">
+              <span>Organ Donor</span>
+              <select id="organDonor" name="organDonor">
+                <option value="">Prefer not to say</option>
+                <option value="yes">Yes</option>
+                <option value="no">No</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Insurance / Policy #</span>
+              <input id="insurance" name="insurance" placeholder="Optional">
+            </label>
+          </div>
+        </fieldset>
+
+        <!-- Actions -->
+        <div class="actions">
+          <button type="button" id="saveBtn" class="btn">Save</button>
+          <button type="button" id="printBtn" class="btn btn-primary">Print Card</button>
+          <button type="button" id="pngBtn" class="btn">Download PNG</button>
+          <button type="button" id="clearBtn" class="btn btn-primary">Clear All</button>
+
+        </div>
+      </form>
+    </section>
+
+    <!-- Live Preview Panel -->
+    <section class="panel preview-panel">
+      <h2>Live Preview</h2>
+      <div class="card-canvas" id="cardCanvas">
+        <!-- Front Card -->
+        <div class="card card-front" id="cardFront">
+          <header class="card-header">
+            <span class="badge">EMERGENCY</span>
+          </header>
+
+          <div class="card-photo-container">
+            <img id="cardPhoto" class="card-photo" src="" alt="Passport Photo Preview">
+          </div>
+
+          <div class="card-body">
+            <dl class="info">
+              <div><dt>Name:</dt><dd id="cardName">—</dd></div>
+              <div><dt>DOB:</dt><dd id="cardDOB">—</dd></div>
+              <div><dt>Language:</dt><dd id="cardLang">—</dd></div>
+              <div><dt>Blood Type:</dt><dd id="cardBlood">—</dd></div>
+              <div><dt>Height / Weight:</dt><dd id="cardHeightWeight">—</dd></div>
+            </dl>
+            <div class="alerts">
+              <div><strong>Allergies:</strong> <span id="cardAllergies">None</span></div>
+              <div><strong>Conditions:</strong> <span id="cardConditions">None</span></div>
+              <div><strong>Medications:</strong> <span id="cardMeds">None</span></div>
+              <div><strong>Special Instructions:</strong> <span id="cardSpecialInstructions">—</span></div>
+            </div>
+          </div>
+
+          <footer class="card-footer">
+            <div>
+              <div class="ice"><strong>Emergency Contact 1:</strong> <span id="cardICE1">—</span></div>
+              <div class="ice"><strong>Emergency Contact 2:</strong> <span id="cardICE2">—</span></div>
+            </div>
+            
+          </footer>
+        </div>
+
+        <!-- Back Card -->
+        <div class="card card-back" id="cardBack">
+          <header class="card-header">
+            <span>Additional Info</span>
+          </header>
+          <div class="card-body">
+            <dl class="info">
+              <div><dt>Organ Donor:</dt><dd id="cardDonor">—</dd></div>
+              <div><dt>Insurance:</dt><dd id="cardInsurance">—</dd></div>
+              <div><dt>Primary Doctor:</dt><dd id="cardDoctor">—</dd></div>
+              <div><dt>Hospital / Clinic:</dt><dd id="cardHospital">—</dd></div>
+              <div><dt>Next of Kin:</dt><dd id="cardNextOfKin">—</dd></div>
+            </dl>
+            <p class="small">
+              This card contains essential emergency information.
+              If lost, Please return it to the owner.
+            </p>
+          </div>
+          <footer class="card-footer">
+            <div class="brand">emergency-card.app</div>
+            <div class="qr small"><canvas id="qrBack"></canvas></div>
+          </footer>
+        </div>
+      </div>
+    </section>
+    
+  </main>
+
+  <footer class="site-footer">
+    <small>© <span id="year"></span>Bissojit Sarker — Built with HTML, CSS & TypeScript</small>
+  </footer>
+</body>
+</html>
