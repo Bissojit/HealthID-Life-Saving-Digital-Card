@@ -1,22 +1,21 @@
 "use strict";
-// --- Helper to get element ---
+
+// Helper to get element
 function getEl(id) {
     const el = document.getElementById(id);
-    if (!el)
-        throw new Error(`Missing element: #${id}`);
+    if (!el) throw new Error(`Missing element: #${id}`);
     return el;
 }
+
+// Format DOB 
 function formatDOB(dob) {
-    if (!dob)
-        return "—";
+    if (!dob) return "—";
     const months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
-    const date = new Date(dob);
-    const day = date.getDate();
-    const month = months[date.getMonth()];
-    const year = date.getFullYear();
-    return `${day} ${month} ${year}`;
+    const d = new Date(dob);
+    return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
 }
-// --- Collect profile ---
+
+// Collect form data 
 function collectProfile() {
     return {
         fullName: getEl("fullName").value.trim(),
@@ -38,10 +37,12 @@ function collectProfile() {
         doctorPhone: getEl("doctorPhone").value.trim(),
         hospital: getEl("hospital").value.trim(),
         nextOfKin: getEl("nextOfKin").value.trim(),
-        photoDataUrl: getEl("cardPhoto").src || undefined,
+        photoDataUrl: getEl("cardPhoto").src || undefined
     };
 }
-// --- Render live preview ---
+
+//  Render preview 
+// Render preview
 function renderPreview(profile) {
     getEl("cardName").textContent = profile.fullName || "—";
     getEl("cardDOB").textContent = formatDOB(profile.dob);
@@ -52,89 +53,170 @@ function renderPreview(profile) {
     getEl("cardMeds").textContent = profile.medications || "None";
     getEl("cardConditions").textContent = profile.conditions || "None";
     getEl("cardSpecialInstructions").textContent = profile.specialInstructions || "—";
-    getEl("cardICE1").textContent = `${profile.ice1Name} (${profile.ice1Phone})` || "—";
-    getEl("cardICE2").textContent = `${profile.ice2Name} (${profile.ice2Phone})` || "—";
-    getEl("cardDoctor").textContent = `${profile.doctorName} (${profile.doctorPhone})` || "—";
+
+    // Include phone numbers in preview
+    getEl("cardICE1").textContent = profile.ice1Name 
+        ? `${profile.ice1Name} (${profile.ice1Phone || "-"})` 
+        : "-";
+    getEl("cardICE2").textContent = profile.ice2Name 
+        ? `${profile.ice2Name} (${profile.ice2Phone || "-"})` 
+        : "-";
+    getEl("cardDoctor").textContent = profile.doctorName 
+        ? `${profile.doctorName} (${profile.doctorPhone || "-"})` 
+        : "-";
+
     getEl("cardHospital").textContent = profile.hospital || "—";
     getEl("cardNextOfKin").textContent = profile.nextOfKin || "—";
     getEl("cardDonor").textContent = profile.organDonor || "—";
     getEl("cardInsurance").textContent = profile.insurance || "—";
-    if (profile.photoDataUrl) {
-        getEl("cardPhoto").src = profile.photoDataUrl;
-    }
-    else {
-        getEl("cardPhoto").src = "";
-    }
-    // --- Generate front QR code ---
-    const qrFrontContainer = getEl("qrFront");
-    qrFrontContainer.innerHTML = ""; // clear previous
-    try {
-        QRCode.toCanvas(qrFrontContainer, JSON.stringify(profile), { width: 150, margin: 1, errorCorrectionLevel: "M" }, (error) => {
-            if (error)
-                console.error("Front QR generation failed:", error);
-        });
-    }
-    catch (err) {
-        console.error("Front QR generation failed", err);
-    }
-    // --- Generate back QR code ---
-    const qrBackContainer = getEl("qrBack");
-    qrBackContainer.innerHTML = ""; // clear previous
-    try {
-        QRCode.toCanvas(qrBackContainer, JSON.stringify(profile), { width: 150, margin: 1, errorCorrectionLevel: "M" }, (error) => {
-            if (error)
-                console.error("Back QR generation failed:", error);
-        });
-    }
-    catch (err) {
-        console.error("Back QR generation failed", err);
-    }
+
+    getEl("cardPhoto").src = profile.photoDataUrl || "";
+
+    generateQR("qrBack", profile);
 }
-// --- Save / Restore profile ---
+
+
+function profileToText(profile) {
+    // Helper to format DOB for QR code
+    function formatDOBForQR(dob) {
+      if (!dob) return "-";
+      const months = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
+      const d = new Date(dob);
+      return d.getDate() + " " + months[d.getMonth()] + " " + d.getFullYear();
+    }
+  
+    return `EMERGENCY CARD
+  
+  Name: ${profile.fullName || "-"}
+  DOB: ${formatDOBForQR(profile.dob)}
+  Blood Type: ${profile.bloodType || "-"}
+  Language: ${profile.language || "-"}
+  Height / Weight: ${profile.heightWeight || "-"}
+  Allergies: ${profile.allergies || "None"}
+  Medications: ${profile.medications || "None"}
+  Conditions: ${profile.conditions || "None"}
+  Special Instructions: ${profile.specialInstructions || "-"}
+  
+  Emergency Contact 1: ${profile.ice1Name || "-"}${profile.ice1Phone ? " (" + profile.ice1Phone + ")" : ""}
+  Emergency Contact 2: ${profile.ice2Name || "-"}${profile.ice2Phone ? " (" + profile.ice2Phone + ")" : ""}
+  Primary Doctor: ${profile.doctorName || "-"}${profile.doctorPhone ? " (" + profile.doctorPhone + ")" : ""}
+  Preferred Hospital: ${profile.hospital || "-"}
+  Next of Kin: ${profile.nextOfKin || "-"}
+  Organ Donor: ${profile.organDonor || "-"}
+  Insurance: ${profile.insurance || "-"}`;
+  }
+  
+
+// QR generation
+function generateQR(canvasId, profile) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) {
+        console.error("QR canvas not found:", canvasId);
+        return;
+    }
+
+    const textData = profileToText(profile); // convert to plain text
+
+    QRCode.toCanvas(
+        canvas,
+        textData, // plain text instead of JSON
+        {
+            width: 150,
+            margin: 1,
+            errorCorrectionLevel: "M"
+        },
+        function (error) {
+            if (error) console.error("QR error:", error);
+        }
+    );
+}
+
+
+
+// Storage
 function saveProfile(profile) {
     localStorage.setItem("emergencyProfile", JSON.stringify(profile));
 }
+
+function clearProfileStorage() {
+    localStorage.removeItem("emergencyProfile");
+}
+
+// Clear all UI 
+function clearUI() {
+    document.getElementById("profileForm").reset();
+    getEl("cardPhoto").src = "";
+
+    const qrBack = document.getElementById("qrBack");
+    if (qrBack) {
+        const ctx = qrBack.getContext("2d");
+        ctx.clearRect(0, 0, qrBack.width, qrBack.height);
+    }
+
+    [
+        "cardName","cardDOB","cardBlood","cardLang","cardHeightWeight",
+        "cardAllergies","cardMeds","cardConditions","cardSpecialInstructions",
+        "cardICE1","cardICE2","cardDoctor","cardHospital",
+        "cardNextOfKin","cardDonor","cardInsurance"
+    ].forEach(id => getEl(id).textContent = "—");
+}
+
+
+// Restore profile
 function restoreProfile() {
     const saved = localStorage.getItem("emergencyProfile");
-    if (!saved)
+    if (!saved) {
+        clearUI();
         return;
+    }
     try {
         const profile = JSON.parse(saved);
         Object.keys(profile).forEach((key) => {
             const el = document.getElementById(key);
-            if (el && "value" in el)
-                el.value = profile[key];
-            else if (el && el.tagName === "IMG" && profile.photoDataUrl)
-                el.src = profile.photoDataUrl;
+            if (!el) return;
+            if ("value" in el) el.value = profile[key] || "";
+            if (el.tagName === "IMG") el.src = profile.photoDataUrl || "";
         });
         renderPreview(profile);
-    }
-    catch {
-        console.warn("Failed to parse saved profile");
+    } catch {
+        clearProfileStorage();
+        clearUI();
     }
 }
-// --- Photo upload ---
+
+// Photo upload
 getEl("photoFile").addEventListener("change", (e) => {
-    var _a;
-    const file = (_a = e.target.files) === null || _a === void 0 ? void 0 : _a[0];
-    if (!file)
-        return;
+    const file = e.target.files?.[0];
+    if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => {
-        getEl("cardPhoto").src = reader.result;
-    };
+    reader.onload = () => getEl("cardPhoto").src = reader.result;
     reader.readAsDataURL(file);
 });
-// --- Print / PNG ---
+
+// Save button
+getEl("saveBtn").addEventListener("click", () => {
+    const profile = collectProfile();
+    saveProfile(profile);
+    renderPreview(profile);
+    alert("Profile saved!");
+});
+
+// Clear All button
+getEl("clearBtn").addEventListener("click", () => {
+    clearProfileStorage();
+    clearUI();
+    alert("All fields cleared!");
+});
+
+// Export
 getEl("printBtn").addEventListener("click", () => {
     html2canvas(getEl("cardCanvas"), { scale: 1 }).then((canvas) => {
-        const imgData = canvas.toDataURL("image/png");
         const win = window.open();
-        if (!win)
-            return;
-        win.document.write(`<img src="${imgData}" onload="window.print();window.close()" />`);
+        if (!win) return;
+        win.document.write(`<img src="${canvas.toDataURL()}" onload="window.print();window.close()">`);
     });
 });
+
 getEl("pngBtn").addEventListener("click", () => {
     html2canvas(getEl("cardCanvas")).then((canvas) => {
         const link = document.createElement("a");
@@ -143,35 +225,6 @@ getEl("pngBtn").addEventListener("click", () => {
         link.click();
     });
 });
-// --- Save button ---
-getEl("saveBtn").addEventListener("click", () => {
-    const profile = collectProfile();
-    saveProfile(profile);
-    renderPreview(profile);
-    alert("Profile saved!");
-});
-// --- Auto restore ---
-document.addEventListener("DOMContentLoaded", () => {
-    restoreProfile();
-});
-// --- Clear All ---
-getEl("clearBtn").addEventListener("click", () => {
-    // Clear form inputs
-    document.getElementById("profileForm").reset();
-    // Clear preview
-    const fields = [
-        "cardName", "cardDOB", "cardBlood", "cardLang", "cardHeightWeight",
-        "cardAllergies", "cardMeds", "cardConditions", "cardSpecialInstructions",
-        "cardICE1", "cardICE2", "cardDoctor", "cardHospital", "cardNextOfKin",
-        "cardDonor", "cardInsurance"
-    ];
-    fields.forEach(id => getEl(id).textContent = "—");
-    // Clear photo
-    getEl("cardPhoto").src = "";
-    // Clear QR codes
-    getEl("qrFront").innerHTML = "";
-    getEl("qrBack").innerHTML = "";
-    // Remove saved data
-    localStorage.removeItem("emergencyProfile");
-    alert("All fields cleared!");
-});
+
+// Auto restore on page load
+document.addEventListener("DOMContentLoaded", restoreProfile);

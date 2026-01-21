@@ -1,4 +1,4 @@
-// --- EmergencyProfile type ---
+// EmergencyProfile type
 interface EmergencyProfile {
   fullName: string;
   dob: string;
@@ -22,28 +22,26 @@ interface EmergencyProfile {
   photoDataUrl?: string;
 }
 
-// --- QRCode & html2canvas ---
+// QRCode & html2canvas
 declare const QRCode: any;
 declare const html2canvas: any;
 
-// --- Helper to get element ---
+//  Helper to get element
 function getEl<T extends HTMLElement>(id: string): T {
   const el = document.getElementById(id) as T | null;
   if (!el) throw new Error(`Missing element: #${id}`);
   return el;
 }
 
+// Format DOB
 function formatDOB(dob: string): string {
   if (!dob) return "—";
   const months = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
   const date = new Date(dob);
-  const day = date.getDate();
-  const month = months[date.getMonth()];
-  const year = date.getFullYear();
-  return `${day} ${month} ${year}`;
+  return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
 }
 
-// --- Collect profile ---
+// Collect profile 
 function collectProfile(): EmergencyProfile {
   return {
     fullName: getEl<HTMLInputElement>("fullName").value.trim(),
@@ -65,69 +63,87 @@ function collectProfile(): EmergencyProfile {
     doctorPhone: getEl<HTMLInputElement>("doctorPhone").value.trim(),
     hospital: getEl<HTMLInputElement>("hospital").value.trim(),
     nextOfKin: getEl<HTMLInputElement>("nextOfKin").value.trim(),
-    photoDataUrl: getEl<HTMLImageElement>("cardPhoto").src || undefined,
+    photoDataUrl: getEl<HTMLImageElement>("cardPhoto").src || undefined
   };
 }
 
-// --- Render live preview ---
+// Convert profile to plain text for QR
+function profileToText(profile: EmergencyProfile): string {
+  return `
+EMERGENCY CARD
+
+Name: ${profile.fullName || "-"}
+DOB: ${profile.dob || "-"}
+Blood Type: ${profile.bloodType || "-"}
+Language: ${profile.language || "-"}
+Height / Weight: ${profile.heightWeight || "-"}
+Allergies: ${profile.allergies || "None"}
+Medications: ${profile.medications || "None"}
+Conditions: ${profile.conditions || "None"}
+Special Instructions: ${profile.specialInstructions || "-"}
+
+Emergency Contact 1: ${profile.ice1Name || "-"}${profile.ice1Phone ? ` (${profile.ice1Phone})` : ""}
+Emergency Contact 2: ${profile.ice2Name || "-"}${profile.ice2Phone ? ` (${profile.ice2Phone})` : ""}
+Primary Doctor: ${profile.doctorName || "-"}${profile.doctorPhone ? ` (${profile.doctorPhone})` : ""}
+Preferred Hospital: ${profile.hospital || "-"}
+Next of Kin: ${profile.nextOfKin || "-"}
+Organ Donor: ${profile.organDonor || "-"}
+Insurance: ${profile.insurance || "-"}
+`;
+}
+
+// Render live preview
 function renderPreview(profile: EmergencyProfile) {
-  getEl<HTMLElement>("cardName").textContent = profile.fullName || "—";
-  getEl<HTMLElement>("cardDOB").textContent = formatDOB(profile.dob);
-  getEl<HTMLElement>("cardBlood").textContent = profile.bloodType || "—";
-  getEl<HTMLElement>("cardLang").textContent = profile.language || "—";
-  getEl<HTMLElement>("cardHeightWeight").textContent = profile.heightWeight || "—";
-  getEl<HTMLElement>("cardAllergies").textContent = profile.allergies || "None";
-  getEl<HTMLElement>("cardMeds").textContent = profile.medications || "None";
-  getEl<HTMLElement>("cardConditions").textContent = profile.conditions || "None";
-  getEl<HTMLElement>("cardSpecialInstructions").textContent = profile.specialInstructions || "—";
-  getEl<HTMLElement>("cardICE1").textContent = `${profile.ice1Name} (${profile.ice1Phone})` || "—";
-  getEl<HTMLElement>("cardICE2").textContent = `${profile.ice2Name} (${profile.ice2Phone})` || "—";
-  getEl<HTMLElement>("cardDoctor").textContent = `${profile.doctorName} (${profile.doctorPhone})` || "—";
-  getEl<HTMLElement>("cardHospital").textContent = profile.hospital || "—";
-  getEl<HTMLElement>("cardNextOfKin").textContent = profile.nextOfKin || "—";
-  getEl<HTMLElement>("cardDonor").textContent = profile.organDonor || "—";
-  getEl<HTMLElement>("cardInsurance").textContent = profile.insurance || "—";
+  const fields: { [key: string]: string } = {
+    cardName: profile.fullName || "—",
+    cardDOB: formatDOB(profile.dob),
+    cardBlood: profile.bloodType || "—",
+    cardLang: profile.language || "—",
+    cardHeightWeight: profile.heightWeight || "—",
+    cardAllergies: profile.allergies || "None",
+    cardMeds: profile.medications || "None",
+    cardConditions: profile.conditions || "None",
+    cardSpecialInstructions: profile.specialInstructions || "—",
+    cardICE1: profile.ice1Name || "—",
+    cardICE2: profile.ice2Name || "—",
+    cardDoctor: profile.doctorName || "—",
+    cardHospital: profile.hospital || "—",
+    cardNextOfKin: profile.nextOfKin || "—",
+    cardDonor: profile.organDonor || "—",
+    cardInsurance: profile.insurance || "—"
+  };
 
-  if (profile.photoDataUrl) {
-    getEl<HTMLImageElement>("cardPhoto").src = profile.photoDataUrl;
-  } else {
-    getEl<HTMLImageElement>("cardPhoto").src = "";
-  }
+  Object.entries(fields).forEach(([id, value]) => {
+    getEl<HTMLElement>(id).textContent = value;
+  });
 
-  // --- Generate front QR code ---
-  const qrFrontContainer = getEl<HTMLDivElement>("qrFront");
-  qrFrontContainer.innerHTML = ""; // clear previous
+  const photoEl = getEl<HTMLImageElement>("cardPhoto");
+  if (profile.photoDataUrl) photoEl.src = profile.photoDataUrl;
+  else photoEl.src = "";
+
+  generateQR("qrFront", profile);
+  generateQR("qrBack", profile);
+}
+
+// Generate QR code
+function generateQR(containerId: string, profile: EmergencyProfile) {
+  const container = getEl<HTMLDivElement>(containerId);
+  container.innerHTML = "";
   try {
     QRCode.toCanvas(
-      qrFrontContainer,
-      JSON.stringify(profile),
+      container,
+      profileToText(profile),
       { width: 150, margin: 1, errorCorrectionLevel: "M" },
       (error: Error | null) => {
-        if (error) console.error("Front QR generation failed:", error);
+        if (error) console.error(`QR generation failed (${containerId}):`, error);
       }
     );
   } catch (err) {
-    console.error("Front QR generation failed", err);
-  }
-
-  // --- Generate back QR code ---
-  const qrBackContainer = getEl<HTMLDivElement>("qrBack");
-  qrBackContainer.innerHTML = ""; // clear previous
-  try {
-    QRCode.toCanvas(
-      qrBackContainer,
-      JSON.stringify(profile),
-      { width: 150, margin: 1, errorCorrectionLevel: "M" },
-      (error: Error | null) => {
-        if (error) console.error("Back QR generation failed:", error);
-      }
-    );
-  } catch (err) {
-    console.error("Back QR generation failed", err);
+    console.error(`QR generation failed (${containerId}):`, err);
   }
 }
 
-// --- Save / Restore profile ---
+// Save / Restore profile
 function saveProfile(profile: EmergencyProfile) {
   localStorage.setItem("emergencyProfile", JSON.stringify(profile));
 }
@@ -136,11 +152,17 @@ function restoreProfile() {
   const saved = localStorage.getItem("emergencyProfile");
   if (!saved) return;
   try {
-    const profile = JSON.parse(saved) as EmergencyProfile;
+    const profile: EmergencyProfile = JSON.parse(saved);
     Object.keys(profile).forEach((key) => {
-      const el = document.getElementById(key) as HTMLInputElement | HTMLSelectElement | HTMLImageElement;
-      if (el && "value" in el) (el as any).value = (profile as any)[key];
-      else if (el && el.tagName === "IMG" && (profile as any).photoDataUrl) el.src = (profile as any).photoDataUrl;
+      const el = document.getElementById(key);
+      if (!el) return;
+
+      // Narrow type properly
+      if (el instanceof HTMLInputElement || el instanceof HTMLSelectElement) {
+        (el as HTMLInputElement | HTMLSelectElement).value = (profile as any)[key] || "";
+      } else if (el instanceof HTMLImageElement && (profile as any).photoDataUrl) {
+        el.src = (profile as any).photoDataUrl;
+      }
     });
     renderPreview(profile);
   } catch {
@@ -148,38 +170,17 @@ function restoreProfile() {
   }
 }
 
-// --- Photo upload ---
+// Photo upload
 getEl<HTMLInputElement>("photoFile").addEventListener("change", (e) => {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (!file) return;
   const reader = new FileReader();
-  reader.onload = () => {
-    getEl<HTMLImageElement>("cardPhoto").src = reader.result as string;
-  };
+  reader.onload = () => getEl<HTMLImageElement>("cardPhoto").src = reader.result as string;
   reader.readAsDataURL(file);
 });
 
-// --- Print / PNG ---
-getEl<HTMLButtonElement>("printBtn").addEventListener("click", () => {
-  html2canvas(getEl<HTMLElement>("cardCanvas"), { scale: 1 }).then((canvas: HTMLCanvasElement) => {
-    const imgData = canvas.toDataURL("image/png");
-    const win = window.open();
-    if (!win) return;
-    win.document.write(`<img src="${imgData}" onload="window.print();window.close()" />`);
-  });
-});
-
-
-getEl<HTMLButtonElement>("pngBtn").addEventListener("click", () => {
-  html2canvas(getEl<HTMLElement>("cardCanvas")).then((canvas: HTMLCanvasElement) => {
-    const link = document.createElement("a");
-    link.download = "emergency-card.png";
-    link.href = canvas.toDataURL("image/png");
-    link.click();
-  });
-});
-
-// --- Save button ---
+// Buttons
+// Save
 getEl<HTMLButtonElement>("saveBtn").addEventListener("click", () => {
   const profile = collectProfile();
   saveProfile(profile);
@@ -187,34 +188,40 @@ getEl<HTMLButtonElement>("saveBtn").addEventListener("click", () => {
   alert("Profile saved!");
 });
 
-// --- Auto restore ---
-document.addEventListener("DOMContentLoaded", () => {
-  restoreProfile();
-});
-
-// --- Clear All ---
+// Clear
 getEl<HTMLButtonElement>("clearBtn").addEventListener("click", () => {
-  // Clear form inputs
-  (document.getElementById("profileForm") as HTMLFormElement).reset();
-
-  // Clear preview
-  const fields = [
-    "cardName","cardDOB","cardBlood","cardLang","cardHeightWeight",
-    "cardAllergies","cardMeds","cardConditions","cardSpecialInstructions",
-    "cardICE1","cardICE2","cardDoctor","cardHospital","cardNextOfKin",
-    "cardDonor","cardInsurance"
-  ];
-  fields.forEach(id => getEl<HTMLElement>(id).textContent = "—");
-
-  // Clear photo
+  getEl<HTMLFormElement>("profileForm").reset();
+  renderPreview({
+    fullName: "", dob: "", bloodType: "", language: "", heightWeight: "",
+    allergies: "", medications: "", conditions: "", specialInstructions: "",
+    organDonor: "", insurance: "", ice1Name: "", ice1Phone: "", ice2Name: "",
+    ice2Phone: "", doctorName: "", doctorPhone: "", hospital: "", nextOfKin: ""
+  });
   getEl<HTMLImageElement>("cardPhoto").src = "";
-
-  // Clear QR codes
   getEl<HTMLDivElement>("qrFront").innerHTML = "";
   getEl<HTMLDivElement>("qrBack").innerHTML = "";
-
-  // Remove saved data
   localStorage.removeItem("emergencyProfile");
-
   alert("All fields cleared!");
 });
+
+// Print
+getEl<HTMLButtonElement>("printBtn").addEventListener("click", () => {
+  html2canvas(getEl<HTMLDivElement>("cardCanvas"), { scale: 1 }).then((canvas: HTMLCanvasElement) => {
+    const win = window.open();
+    if (!win) return;
+    win.document.write(`<img src="${canvas.toDataURL()}" onload="window.print();window.close()">`);
+  });
+});
+
+// Download PNG
+getEl<HTMLButtonElement>("pngBtn").addEventListener("click", () => {
+  html2canvas(getEl<HTMLDivElement>("cardCanvas")).then((canvas: HTMLCanvasElement) => {
+    const link = document.createElement("a");
+    link.download = "emergency-card.png";
+    link.href = canvas.toDataURL("image/png");
+    link.click();
+  });
+});
+
+// Auto restore
+document.addEventListener("DOMContentLoaded", restoreProfile);
